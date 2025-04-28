@@ -15,7 +15,7 @@ positive_feedback_template = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful assistant."),
         ("human",
-         "Generate a thank you note for this positive feedback: {feedback}."),
+         "Generate a response addressing this positive feedback: {feedback} as a paragraph and do not write it in a form of a letter."),
     ]
 )
 
@@ -23,7 +23,7 @@ negative_feedback_template = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful assistant."),
         ("human",
-         "Generate a response addressing this negative feedback: {feedback}."),
+         "Generate a response addressing this negative feedback: {feedback}. Please include an apology and a contact method for further assistance."),
     ]
 )
 
@@ -42,7 +42,7 @@ escalate_feedback_template = ChatPromptTemplate.from_messages(
         ("system", "You are a helpful assistant."),
         (
             "human",
-            "Generate a message to escalate this feedback to a human agent: {feedback}.",
+            "Escalate this feedback to the support team: {feedback}.",
         ),
     ]
 )
@@ -56,21 +56,24 @@ classification_template = ChatPromptTemplate.from_messages(
     ]
 )
 
+positive_feedback_chain = positive_feedback_template | model | StrOutputParser()
+negative_feedback_chain = negative_feedback_template | model | StrOutputParser()
+neutral_feedback_chain = neutral_feedback_template | model | StrOutputParser()
+escalate_feedback_chain = escalate_feedback_template | model | StrOutputParser()
+
+
 # Define the runnable branches for handling feedback
 branches = RunnableBranch(
     (
-        lambda x: "positive" in x,
-        positive_feedback_template | model | StrOutputParser()  # Positive feedback chain
+        lambda x: "positive" in x, positive_feedback_chain
     ),
     (
-        lambda x: "negative" in x,
-        negative_feedback_template | model | StrOutputParser()  # Negative feedback chain
+        lambda x: "negative" in x, negative_feedback_chain
     ),
     (
-        lambda x: "neutral" in x,
-        neutral_feedback_template | model | StrOutputParser()  # Neutral feedback chain
+        lambda x: "neutral" in x, neutral_feedback_chain
     ),
-    escalate_feedback_template | model | StrOutputParser()
+    escalate_feedback_chain
 )
 
 # Create the classification chain
@@ -85,7 +88,7 @@ chain = classification_chain | branches
 # Neutral review - "The product is okay. It works as expected but nothing exceptional."
 # Default - "I'm not sure about the product yet. Can you tell me more about its features and benefits?"
 
-review = "The product is terrible. It broke after just one use and the quality is very poor."
+review = "The product is okay. It works as expected but nothing exceptional."
 result = chain.invoke({"feedback": review})
 
 # Output the result
